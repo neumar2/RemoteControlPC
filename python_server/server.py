@@ -1,5 +1,6 @@
 import socket
 import os
+import subprocess
 import threading
 import json
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -94,10 +95,13 @@ def handle_command(data):
         elif cmd == 'PWR':
             action = parts[1]
             if action == 'shutdown':
-                time_sec = parts[2]
-                os.system(f"shutdown -s -t {time_sec}")
+                try:
+                    time_sec = int(parts[2])
+                    subprocess.run(["shutdown", "-s", "-t", str(time_sec)], check=False)
+                except ValueError:
+                    print("Comando de shutdown ignorado devido a parametro invalido.")
             elif action == 'cancel':
-                os.system("shutdown -a")
+                subprocess.run(["shutdown", "-a"], check=False)
                 
     except Exception as e:
         print(f"Erro ao processar comando '{data}': {e}")
@@ -129,10 +133,16 @@ class VideoGalleryHandler(SimpleHTTPRequestHandler):
                 if "?dir=" in self.path:
                     query_dir = unquote(self.path.split("?dir=")[1])
                 
-                base_path = os.path.expanduser(r"C:\Users\neoma\Videos")
-                target_path = os.path.join(base_path, query_dir)
+                base_path = os.path.abspath(os.path.expanduser(r"C:\Users\neoma\Videos"))
+                target_path = os.path.abspath(os.path.join(base_path, query_dir))
                 
-                if not os.path.exists(target_path) or not target_path.startswith(base_path):
+                # Prevenção rigorosa de Path Traversal
+                if not target_path.startswith(base_path) or os.path.commonpath([base_path, target_path]) != base_path:
+                    self.send_response(403)
+                    self.end_headers()
+                    return
+                
+                if not os.path.exists(target_path):
                     self.send_response(404)
                     self.end_headers()
                     return
@@ -167,7 +177,17 @@ class VideoGalleryHandler(SimpleHTTPRequestHandler):
         # Isso é essencial para vídeos pesados (ex: 6GB) não precisarem carregar tudo de uma vez.
         try:
             file_path = unquote(self.path.lstrip('/'))
-            full_path = os.path.join(os.path.expanduser(r"C:\Users\neoma\Videos"), file_path)
+            base_path = os.path.abspath(os.path.expanduser(r"C:\Users\neoma\Videos"))
+            
+            # Removemos a barra inicial ou drive letter do file_path para o join funcionar corretamente como filho
+            file_path = file_path.lstrip('\\/')
+            full_path = os.path.abspath(os.path.join(base_path, file_path))
+            
+            # Prevenção rigorosa de Path Traversal
+            if not full_path.startswith(base_path) or os.path.commonpath([base_path, full_path]) != base_path:
+                self.send_response(403)
+                self.end_headers()
+                return
             
             if not os.path.exists(full_path) or not os.path.isfile(full_path):
                 self.send_response(404)
