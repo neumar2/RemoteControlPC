@@ -7,6 +7,7 @@ import '../services/smb_service.dart';
 import 'trackpad_tab.dart';
 import 'power_tab.dart';
 import 'gallery_tab.dart';
+import 'streaming_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,17 +32,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final List<Widget> tabs = [
       const TrackpadTab(),
       const PowerTab(),
+      const GalleryTab(),
+      const StreamingTab(),
     ];
     
     final List<BottomNavigationBarItem> navItems = [
       const BottomNavigationBarItem(icon: Icon(Icons.touch_app), label: 'Trackpad'),
       const BottomNavigationBarItem(icon: Icon(Icons.power_settings_new), label: 'Energia'),
+      const BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'Galeria'),
+      const BottomNavigationBarItem(icon: Icon(Icons.tv), label: 'Stream'),
     ];
-
-    if (currentProfile?.hasSMBFiles == true) {
-      tabs.add(const GalleryTab());
-      navItems.add(const BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'Galeria'));
-    }
 
     if (_currentIndex >= tabs.length) {
       _currentIndex = 0;
@@ -169,6 +169,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
+          if (!isNew)
+            TextButton(
+              onPressed: () {
+                appState.removeProfile(profile.id);
+                Navigator.pop(ctx);
+              },
+              child: const Text('Excluir', style: TextStyle(color: Colors.redAccent)),
+            ),
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: Colors.white54))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6C63FF)),

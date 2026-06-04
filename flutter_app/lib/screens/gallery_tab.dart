@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/app_state.dart';
 import 'video_player_screen.dart';
 
@@ -151,7 +152,16 @@ class _GalleryTabState extends State<GalleryTab> {
                                 ),
                                 title: Text(file['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
                                 subtitle: isDir ? null : Text('${(file['size'] / (1024 * 1024)).toStringAsFixed(1)} MB'),
-                                trailing: isDir ? const Icon(Icons.chevron_right, color: Colors.white54) : null,
+                                trailing: isDir 
+                                    ? const Icon(Icons.chevron_right, color: Colors.white54) 
+                                    : IconButton(
+                                        icon: const Icon(Icons.download, color: Colors.white),
+                                        onPressed: () {
+                                          final ip = context.read<AppState>().currentProfile?.localIp ?? '';
+                                          final url = 'http://$ip:8000/${file['path']}?download=1';
+                                          launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                                        },
+                                      ),
                               ),
                             );
                           },

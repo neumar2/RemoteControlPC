@@ -3,6 +3,8 @@ import os
 import subprocess
 import threading
 import json
+import ctypes
+import webbrowser
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import unquote
 from pynput.mouse import Controller as MouseController, Button
@@ -14,6 +16,35 @@ keyboard = KeyboardController()
 
 UDP_IP = "0.0.0.0"
 UDP_PORT = 8080
+
+def find_and_focus_window(title_substring):
+    EnumWindows = ctypes.windll.user32.EnumWindows
+    EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int))
+    GetWindowText = ctypes.windll.user32.GetWindowTextW
+    GetWindowTextLength = ctypes.windll.user32.GetWindowTextLengthW
+    IsWindowVisible = ctypes.windll.user32.IsWindowVisible
+    
+    found_hwnd = None
+    
+    def foreach_window(hwnd, lParam):
+        nonlocal found_hwnd
+        if IsWindowVisible(hwnd):
+            length = GetWindowTextLength(hwnd)
+            buff = ctypes.create_unicode_buffer(length + 1)
+            GetWindowText(hwnd, buff, length + 1)
+            if title_substring.lower() in buff.value.lower():
+                found_hwnd = hwnd
+                return False # Stop enumerating
+        return True
+    
+    EnumWindows(EnumWindowsProc(foreach_window), 0)
+    
+    if found_hwnd:
+        # SW_RESTORE = 9
+        ctypes.windll.user32.ShowWindow(found_hwnd, 9)
+        ctypes.windll.user32.SetForegroundWindow(found_hwnd)
+        return True
+    return False
 
 def handle_command(data):
     """
@@ -65,7 +96,23 @@ def handle_command(data):
             
         elif cmd == 'MACRO':
             action = parts[1]
-            if action == 'backspace':
+            if action in ['netflix', 'prime', 'hbo', 'crunchyroll', 'youtube', 'disney']:
+                sites = {
+                    'netflix': ('Netflix', 'https://www.netflix.com'),
+                    'prime': ('Prime Video', 'https://www.primevideo.com'),
+                    'hbo': ('Max', 'https://www.max.com'),
+                    'crunchyroll': ('Crunchyroll', 'https://www.crunchyroll.com'),
+                    'youtube': ('YouTube', 'https://www.youtube.com'),
+                    'disney': ('Disney+', 'https://www.disneyplus.com')
+                }
+                title, url = sites[action]
+                
+                if find_and_focus_window(title):
+                    keyboard.press(Key.f5)
+                    keyboard.release(Key.f5)
+                else:
+                    webbrowser.open(url)
+            elif action == 'backspace':
                 keyboard.press(Key.backspace)
                 keyboard.release(Key.backspace)
             elif action == 'play_pause':
@@ -176,7 +223,14 @@ class VideoGalleryHandler(SimpleHTTPRequestHandler):
         # Para as rotas normais (arquivos de vídeo), implementamos o suporte a Range requests
         # Isso é essencial para vídeos pesados (ex: 6GB) não precisarem carregar tudo de uma vez.
         try:
-            file_path = unquote(self.path.lstrip('/'))
+            raw_path = self.path
+            is_download = False
+            if '?' in raw_path:
+                raw_path, query_string = raw_path.split('?', 1)
+                if 'download=1' in query_string:
+                    is_download = True
+                    
+            file_path = unquote(raw_path.lstrip('/'))
             base_path = os.path.abspath(os.path.expanduser(r"C:\Users\neoma\Videos"))
             
             # Removemos a barra inicial ou drive letter do file_path para o join funcionar corretamente como filho
@@ -217,6 +271,8 @@ class VideoGalleryHandler(SimpleHTTPRequestHandler):
                 self.send_header('Accept-Ranges', 'bytes')
                 self.send_header('Content-Range', f'bytes {start}-{end}/{file_size}')
                 self.send_header('Content-Length', str(length))
+                if is_download:
+                    self.send_header('Content-Disposition', f'attachment; filename="{os.path.basename(full_path)}"')
                 self.end_headers()
                 
                 with open(full_path, 'rb') as f:
@@ -240,6 +296,8 @@ class VideoGalleryHandler(SimpleHTTPRequestHandler):
                 self.send_header('Content-Type', 'video/mp4')
                 self.send_header('Accept-Ranges', 'bytes')
                 self.send_header('Content-Length', str(file_size))
+                if is_download:
+                    self.send_header('Content-Disposition', f'attachment; filename="{os.path.basename(full_path)}"')
                 self.end_headers()
                 
                 with open(full_path, 'rb') as f:
