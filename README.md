@@ -24,7 +24,7 @@ Se você não quer compilar o código e apenas quer usar o aplicativo, baixe os 
 O projeto é dividido em dois módulos essenciais:
 
 1. **Flutter App (`/flutter_app`)**: O aplicativo mobile contendo a UI moderna (Neumorfismo Escuro / Cyberpunk) projetado em Dart.
-2. **Python Server (`/python_server`)**: O cérebro que roda no Windows, recebendo sinais UDP e gerando um Web Server inteligente (porta 8000) e controlador de inputs virtuais (porta 8080).
+2. **Python Server (`/python_server`)**: O cérebro que roda no Windows, recebendo sinais UDP e gerando um Web Server inteligente (porta 8000) e controlador de inputs virtuais (porta 9090).
 
 ## 📥 Como Instalar e Usar
 

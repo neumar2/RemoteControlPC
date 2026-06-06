@@ -11,7 +11,7 @@ echo   Instalando RemoteControlPC Server como Administrador...
 echo ============================================================
 echo.
 
-:: Remove o atalho antigo da pasta Startup (não precisa mais dele)
+:: Remove atalhos antigos da pasta Startup
 del /f /q "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\RemoteControlServer.lnk" 2>NUL
 del /f /q "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\RemoteControlServer.vbs" 2>NUL
 del /f /q "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\Start_RemoteControl.bat" 2>NUL
@@ -20,7 +20,7 @@ del /f /q "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\Start_RemoteC
 schtasks /delete /tn "RemoteControlPC_Server" /f 2>NUL
 
 :: Cria nova tarefa agendada com privilegios de Administrador
-schtasks /create /tn "RemoteControlPC_Server" /tr "\"C:\Users\neoma\AppData\Local\Programs\Python\Python312\pythonw.exe\" \"C:\Users\neoma\.gemini\antigravity-ide\scratch\remote_control_project\python_server\server.py\"" /sc onlogon /rl highest /f
+schtasks /create /tn "RemoteControlPC_Server" /tr "\"C:\Users\neoma\AppData\Local\Programs\Python\Python312\pythonw.exe\" \"C:\Users\neoma\Documents\RemoteControlPC\python_server\server.py\"" /sc onlogon /rl highest /f
 
 if %errorlevel% equ 0 (
     echo.
@@ -41,7 +41,6 @@ if %errorlevel% equ 0 (
     echo   - Roda como ADMINISTRADOR (funciona dentro de jogos)
     echo   - Inicia AUTOMATICAMENTE quando o PC liga
     echo   - Roda INVISIVEL (sem janela preta)
-    echo   - NAO depende da IDE Antigravity
     echo ============================================================
 ) else (
     echo.
