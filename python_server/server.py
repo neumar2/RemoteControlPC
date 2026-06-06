@@ -1,21 +1,43 @@
 import socket
 import os
+import sys
 import subprocess
 import threading
 import json
 import ctypes
 import webbrowser
+import logging
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import unquote
 from pynput.mouse import Controller as MouseController, Button
 from pynput.keyboard import Controller as KeyboardController, Key
+
+# ============================================================
+# LOGGING SEGURO - Funciona com ou sem console (pythonw.exe)
+# ============================================================
+LOG_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_FILE = os.path.join(LOG_DIR, "server.log")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler(LOG_FILE, encoding="utf-8"),
+    ]
+)
+log = logging.getLogger("RemoteControl")
+
+# Redireciona stdout/stderr para evitar crash do pythonw.exe
+if sys.executable.lower().endswith("pythonw.exe") or sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+    sys.stderr = open(os.devnull, "w")
 
 # Inicializa controladores
 mouse = MouseController()
 keyboard = KeyboardController()
 
 UDP_IP = "0.0.0.0"
-UDP_PORT = 8080
+UDP_PORT = 9090
 
 def find_and_focus_window(title_substring):
     EnumWindows = ctypes.windll.user32.EnumWindows
@@ -146,17 +168,17 @@ def handle_command(data):
                     time_sec = int(parts[2])
                     subprocess.run(["shutdown", "-s", "-t", str(time_sec)], check=False)
                 except ValueError:
-                    print("Comando de shutdown ignorado devido a parametro invalido.")
+                    log.warning("Comando de shutdown ignorado devido a parametro invalido.")
             elif action == 'cancel':
                 subprocess.run(["shutdown", "-a"], check=False)
                 
     except Exception as e:
-        print(f"Erro ao processar comando '{data}': {e}")
+        log.error(f"Erro ao processar comando '{data}': {e}")
 
 def start_udp_server():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((UDP_IP, UDP_PORT))
-    print(f"[UDP] Servidor de Mouse/Teclado rodando em {UDP_IP}:{UDP_PORT}")
+    log.info(f"[UDP] Servidor de Mouse/Teclado rodando em {UDP_IP}:{UDP_PORT}")
     
     while True:
         try:
@@ -164,9 +186,13 @@ def start_udp_server():
             cmd_str = data.decode('utf-8').strip()
             handle_command(cmd_str)
         except Exception as e:
-            print(f"[UDP] Erro no Socket: {e}")
+            log.error(f"[UDP] Erro no Socket: {e}")
 
 class VideoGalleryHandler(SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Silencia os logs padrão do HTTP que usam sys.stderr
+        log.debug(f"[HTTP] {format % args}")
+
     def end_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
         super().end_headers()
@@ -313,7 +339,7 @@ class VideoGalleryHandler(SimpleHTTPRequestHandler):
                         pass
                 return
         except Exception as e:
-            print(f"Erro no streaming de vídeo: {e}")
+            log.error(f"Erro no streaming de video: {e}")
             try:
                 self.send_response(500)
                 self.end_headers()
@@ -328,11 +354,16 @@ def start_http_server():
     
     server_address = ('0.0.0.0', 8000)
     httpd = HTTPServer(server_address, VideoGalleryHandler)
-    print(f"[HTTP] Servidor de Galeria de Video rodando em {server_address[0]}:8000")
+    log.info(f"[HTTP] Servidor de Galeria de Video rodando em {server_address[0]}:8000")
     httpd.serve_forever()
 
 def main():
-    print("Iniciando Servidores do Controle Remoto...")
+    log.info("=" * 50)
+    log.info("Iniciando Servidores do Controle Remoto...")
+    log.info(f"PID: {os.getpid()}")
+    log.info(f"Executavel: {sys.executable}")
+    log.info("=" * 50)
+    
     # Inicia o servidor HTTP numa thread separada
     http_thread = threading.Thread(target=start_http_server, daemon=True)
     http_thread.start()

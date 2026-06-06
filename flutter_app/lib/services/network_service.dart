@@ -6,7 +6,7 @@ class NetworkService {
   RawDatagramSocket? _socket;
   String? _activeIp;
   Profile? _currentProfile;
-  final int port = 8080;
+  final int port = 9090;
 
   /// Atualiza o perfil atual e determina o IP ativo
   Future<void> setProfile(Profile profile) async {
